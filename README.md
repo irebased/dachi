@@ -1,6 +1,6 @@
 # Dachi - Cryptographic CLI Tool
 
-A powerful command-line tool for cryptographic operations, featuring a highly extensible architecture with strong abstraction layers.
+A command-line tool for vigenere brute force operations with custom alphabets and keys.
 
 ## Installation
 
