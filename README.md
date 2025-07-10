@@ -2,6 +2,32 @@
 
 A powerful command-line tool for cryptographic operations, featuring a highly extensible architecture with strong abstraction layers.
 
+## Installation
+
+### Requirements
+
+- Python 3.8+
+- pip
+
+### Install pipx
+
+Mac: `brew install pipx && sudo pipx ensurepath`
+Linux: `sudo apt install pipx` or whatever you need, figure it out :)
+Windows: `py -m pip install --user pipx` then `pipx ensurepath`
+
+### Install dachi with pipx
+
+```
+pipx install git+https://github.com/irebased/dachi.git
+```
+
+### Good to go!
+
+Try it:
+```
+dachi --help
+```
+
 ## Features
 
 - **Vigenère Cipher**: Classic and autokey variants with custom alphabets
@@ -402,7 +428,3 @@ pytest -v
 4. Add tests for new functionality
 5. Ensure all tests pass
 6. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
