@@ -29,7 +29,7 @@ class OutputFormatter:
         lines.append(f"Ciphertext: {results['ciphertext']}")
         lines.append(f"Max Key Length: {results['max_key_length']}")
         lines.append(f"Autokey Mode: {results['autokey']}")
-        lines.append(f"Alphabet: {results['alphabet']}")
+        # Removed top-level Alphabet line
         lines.append(f"Total Keys Tried: {results['total_keys']}")
         lines.append(f"Successful Decryptions: {results['successful_decryptions']}")
         lines.append("")
@@ -38,11 +38,11 @@ class OutputFormatter:
 
         for result in results['results']:
             if result['success']:
-                lines.append(f"Key: {result['key']} (length: {result['key_length']})")
+                lines.append(f"Key: {result['key']} (length: {result['key_length']}) | Alphabet: {result.get('alphabet', '')}")
                 lines.append(f"Decrypted: {result['decrypted_text']}")
                 lines.append("")
             else:
-                lines.append(f"Key: {result['key']} (length: {result['key_length']}) - FAILED")
+                lines.append(f"Key: {result['key']} (length: {result['key_length']}) | Alphabet: {result.get('alphabet', '')} - FAILED")
                 if 'error' in result:
                     lines.append(f"Error: {result['error']}")
                 lines.append("")
@@ -81,7 +81,7 @@ class OutputFormatter:
 
         # Header
         writer.writerow([
-            "Key", "Key Length", "Success", "Decrypted Text", "Error"
+            "Key", "Key Length", "Alphabet", "Success", "Decrypted Text", "Error"
         ])
 
         # Data rows
@@ -89,6 +89,7 @@ class OutputFormatter:
             writer.writerow([
                 result['key'],
                 result['key_length'],
+                result.get('alphabet', ''),
                 result['success'],
                 result.get('decrypted_text', ''),
                 result.get('error', '')

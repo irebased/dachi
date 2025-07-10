@@ -15,6 +15,7 @@ from .ciphers.vigenere import VigenereCipher
 from .utils.text import format_output
 from .utils.alphabet_generator import AlphabetGenerator
 from .utils.output_formatter import OutputFormatter
+from .orchestrator import VigenereOrchestrator
 
 
 console = Console()
@@ -325,6 +326,114 @@ def brute_force(
             console.print("\n[cyan]First few successful decryptions:[/cyan]")
             for i, result in enumerate(successful_results[:5]):
                 console.print(f"  {i+1}. Key: '{result['key']}' -> '{result['decrypted_text']}'")
+            if len(successful_results) > 5:
+                console.print(f"  ... and {len(successful_results) - 5} more (see output files)")
+
+    except Exception as e:
+        print_error(f"Error saving results: {e}")
+
+
+@vigenere.command()
+@click.option('--text', '-t', help='Text to decrypt')
+@click.option('--input-file', '-i', help='Input file path')
+@click.option('--alphabets-file', '-a', help='File containing list of alphabets (one per line)')
+@click.option('--keys-file', '-k', help='File containing list of keys')
+@click.option('--key', help='Single key to use')
+@click.option('--autokey', is_flag=True, help='Use autokey mode')
+@click.option('--interactive', is_flag=True, help='Interactive mode')
+@click.option('--output-dir', '-o', default='out', help='Output directory (default: out)')
+@click.option('--base-filename', '-f', help='Base filename for output files (default: orchestrate_results)')
+@click.option('--verbose', '-v', is_flag=True, help='Verbose output')
+def orchestrate(
+    text: Optional[str],
+    input_file: Optional[str],
+    alphabets_file: Optional[str],
+    keys_file: Optional[str],
+    key: Optional[str],
+    autokey: bool,
+    interactive: bool,
+    output_dir: str,
+    base_filename: Optional[str],
+    verbose: bool,
+) -> None:
+    """Orchestrate Vigenère decryption over all key/alphabet permutations."""
+
+    # Validate inputs
+    if not alphabets_file and not keys_file and not key:
+        print_error("Must provide either --alphabets-file, --keys-file, or --key")
+        return
+
+    if keys_file and key:
+        print_error("Cannot provide both --keys-file and --key")
+        return
+
+    # Create orchestrator
+    orchestrator = VigenereOrchestrator(autokey=autokey)
+
+    # Load alphabets and keys
+    try:
+        alphabets = orchestrator.load_alphabets(alphabets_file)
+        keys = orchestrator.load_keys(keys_file, key)
+
+        if verbose:
+            console.print(f"[blue]Loaded {len(alphabets)} alphabets and {len(keys)} keys[/blue]")
+            if alphabets_file:
+                console.print(f"[blue]Alphabets file: {alphabets_file}[/blue]")
+            if keys_file:
+                console.print(f"[blue]Keys file: {keys_file}[/blue]")
+            elif key:
+                console.print(f"[blue]Single key: {key}[/blue]")
+    except Exception as e:
+        print_error(f"Error loading alphabets or keys: {e}")
+        return
+
+    # Get input text
+    if interactive:
+        if not text:
+            text = get_interactive_input("Enter text to decrypt: ")
+    elif input_file:
+        text = read_file_content(input_file)
+    elif not text:
+        print_error("Must provide text via --text, --input-file, or --interactive")
+        return
+
+    # Set default base filename if not provided
+    if not base_filename:
+        base_filename = "orchestrate_results"
+
+    # Run orchestration
+    console.print("[blue]Starting orchestrated decryption...[/blue]")
+    results = orchestrator.run(text, alphabets, keys)
+
+    # Save results
+    try:
+        saved_files = orchestrator.output_results(results, base_filename, output_dir)
+
+        # Display summary
+        total_attempts = len(results['results'])
+        successful = sum(1 for r in results['results'] if r['success'])
+
+        console.print(Panel(
+            f"Orchestrated decryption completed!\n\n"
+            f"Total attempts: {total_attempts:,}\n"
+            f"Successful decryptions: {successful}\n"
+            f"Alphabets used: {results['total_alphabets']}\n"
+            f"Keys used: {results['total_keys']}\n"
+            f"Autokey mode: {results['autokey']}\n\n"
+            f"Results saved to:\n"
+            f"• TXT: {saved_files['txt']}\n"
+            f"• JSON: {saved_files['json']}\n"
+            f"• CSV: {saved_files['csv']}",
+            title="[green]Orchestration Results[/green]",
+            border_style="green"
+        ))
+
+        # Show first few successful results
+        successful_results = [r for r in results['results'] if r['success']]
+        if successful_results:
+            console.print("\n[cyan]First few successful decryptions:[/cyan]")
+            for i, result in enumerate(successful_results[:5]):
+                console.print(f"  {i+1}. Key: '{result['key']}' | Alphabet: '{result['alphabet'][:10]}...' -> '{result['decrypted_text']}'")
             if len(successful_results) > 5:
                 console.print(f"  ... and {len(successful_results) - 5} more (see output files)")
 

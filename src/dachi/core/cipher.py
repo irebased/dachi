@@ -120,9 +120,12 @@ class Cipher(ABC):
         except ValueError as e:
             return f"Invalid key: {e}"
 
-        # Validate text contains only alphabet characters or spaces
-        if not self.alphabet.validate_text(text):
-            return f"Text contains characters not in alphabet: {text}"
+        # Preprocess text for validation (convert to uppercase and filter)
+        processed_text = self.preprocess_text(text)
+
+        # Validate processed text contains only alphabet characters or spaces
+        if not self.alphabet.validate_text(processed_text):
+            return f"Text contains characters not in alphabet after processing: {text}"
 
         return None
 
@@ -135,7 +138,9 @@ class Cipher(ABC):
         Returns:
             Preprocessed text
         """
-        return self.alphabet.filter_text(text, preserve_spaces=True)
+        # Convert to uppercase before filtering
+        uppercase_text = text.upper()
+        return self.alphabet.filter_text(uppercase_text, preserve_spaces=True)
 
     def postprocess_text(self, text: str) -> str:
         """Postprocess text after cipher operations.
