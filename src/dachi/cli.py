@@ -14,6 +14,7 @@ from .core.alphabet import Alphabet
 from .ciphers.vigenere import VigenereCipher
 from .utils.text import format_output
 from .utils.alphabet_generator import AlphabetGenerator
+from .utils.output_formatter import OutputFormatter
 
 
 console = Console()
@@ -234,7 +235,101 @@ def decrypt(
         ))
 
 
+@vigenere.command()
+@click.option('--text', '-t', help='Text to brute-force decrypt')
+@click.option('--input-file', '-i', help='Input file path')
+@click.option('--key-length', '-l', required=True, type=int, help='Maximum key length to try')
+@click.option('--alphabet', '-a', help='Custom alphabet (default: A-Z)')
+@click.option('--autokey', is_flag=True, help='Use autokey mode')
+@click.option('--interactive', is_flag=True, help='Interactive mode')
+@click.option('--output-dir', '-o', default='out', help='Output directory (default: out)')
+@click.option('--base-filename', '-f', help='Base filename for output files (default: brute_force_results)')
+@click.option('--verbose', '-v', is_flag=True, help='Verbose output')
+def brute_force(
+    text: Optional[str],
+    input_file: Optional[str],
+    key_length: int,
+    alphabet: Optional[str],
+    autokey: bool,
+    interactive: bool,
+    output_dir: str,
+    base_filename: Optional[str],
+    verbose: bool,
+) -> None:
+    """Brute-force decrypt text using all possible keys up to specified length."""
 
+    if key_length <= 0:
+        print_error("Key length must be positive")
+        return
+
+    if key_length > 6:
+        console.print("[yellow]Warning: Large key lengths may take a very long time to complete![/yellow]")
+        if not interactive:
+            console.print("[yellow]Consider using --interactive to confirm.[/yellow]")
+
+    # Create alphabet
+    alphabet_obj = create_alphabet_from_string(alphabet)
+
+    # Create cipher
+    cipher = VigenereCipher(alphabet=alphabet_obj, autokey=autokey)
+
+    if verbose:
+        display_cipher_info(cipher)
+        total_combinations = sum(len(alphabet_obj.characters) ** i for i in range(1, key_length + 1))
+        console.print(f"[blue]Total key combinations to try: {total_combinations:,}[/blue]")
+
+    # Get input text
+    if interactive:
+        if not text:
+            text = get_interactive_input("Enter text to brute-force decrypt: ")
+    elif input_file:
+        text = read_file_content(input_file)
+    elif not text:
+        print_error("Must provide text via --text, --input-file, or --interactive")
+        return
+
+    # Set default base filename if not provided
+    if not base_filename:
+        base_filename = "brute_force_results"
+
+    # Perform brute-force decryption
+    console.print("[blue]Starting brute-force decryption...[/blue]")
+    results = cipher.brute_force_decrypt(text, key_length)
+
+    if "error" in results:
+        print_error(results["error"])
+        return
+
+    # Save results
+    try:
+        saved_files = OutputFormatter.save_results(results, base_filename, output_dir)
+
+        # Display summary
+        console.print(Panel(
+            f"Brute-force decryption completed!\n\n"
+            f"Total keys tried: {results['total_keys']:,}\n"
+            f"Successful decryptions: {results['successful_decryptions']}\n"
+            f"Max key length: {results['max_key_length']}\n"
+            f"Autokey mode: {results['autokey']}\n\n"
+            f"Results saved to:\n"
+            f"• TXT: {saved_files['txt']}\n"
+            f"• JSON: {saved_files['json']}\n"
+            f"• CSV: {saved_files['csv']}",
+            title="[green]Brute-Force Results[/green]",
+            border_style="green"
+        ))
+
+        # Show first few successful results
+        successful_results = [r for r in results['results'] if r['success']]
+        if successful_results:
+            console.print("\n[cyan]First few successful decryptions:[/cyan]")
+            for i, result in enumerate(successful_results[:5]):
+                console.print(f"  {i+1}. Key: '{result['key']}' -> '{result['decrypted_text']}'")
+            if len(successful_results) > 5:
+                console.print(f"  ... and {len(successful_results) - 5} more (see output files)")
+
+    except Exception as e:
+        print_error(f"Error saving results: {e}")
 
 
 @main.group()

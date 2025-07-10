@@ -1,6 +1,7 @@
 """Vigenère cipher implementation with autokey support."""
 
-from typing import Optional
+from typing import Optional, List, Dict, Any
+import itertools
 
 from ..core.alphabet import Alphabet
 from ..core.cipher import StreamCipher, CipherResult, BaseCipherResult
@@ -166,6 +167,90 @@ class VigenereCipher(StreamCipher):
 
         except Exception as e:
             return BaseCipherResult.error_result(f"Decryption failed: {e}")
+
+    def generate_all_keys(self, max_length: int) -> List[str]:
+        """Generate all possible keys up to the specified length.
+
+        Args:
+            max_length: Maximum key length to generate
+
+        Returns:
+            List of all possible keys up to max_length
+        """
+        if max_length <= 0:
+            return []
+
+        keys = []
+        alphabet_chars = list(self.alphabet.characters)
+
+        for length in range(1, max_length + 1):
+            for key_tuple in itertools.product(alphabet_chars, repeat=length):
+                keys.append(''.join(key_tuple))
+
+        return keys
+
+    def brute_force_decrypt(self, ciphertext: str, max_key_length: int) -> Dict[str, Any]:
+        """Brute-force decrypt ciphertext using all possible keys up to max_key_length.
+
+        Args:
+            ciphertext: The text to decrypt
+            max_key_length: Maximum key length to try
+
+        Returns:
+            Dictionary containing results for all keys
+        """
+        if max_key_length <= 0:
+            return {"error": "Invalid key length"}
+
+        # Validate input
+        error = self.validate_input(ciphertext, "A")  # Use dummy key for validation
+        if error:
+            return {"error": error}
+
+        results = {
+            "ciphertext": ciphertext,
+            "max_key_length": max_key_length,
+            "autokey": self.autokey,
+            "alphabet": self.alphabet.characters,
+            "total_keys": 0,
+            "successful_decryptions": 0,
+            "results": []
+        }
+
+        # Generate all possible keys
+        keys = self.generate_all_keys(max_key_length)
+        results["total_keys"] = len(keys)
+
+        # Try each key
+        for key in keys:
+            try:
+                decryption_result = self.decrypt(ciphertext, key)
+                if decryption_result.success:
+                    results["successful_decryptions"] += 1
+                    results["results"].append({
+                        "key": key,
+                        "key_length": len(key),
+                        "decrypted_text": str(decryption_result),
+                        "success": True
+                    })
+                else:
+                    results["results"].append({
+                        "key": key,
+                        "key_length": len(key),
+                        "decrypted_text": "",
+                        "success": False,
+                        "error": decryption_result.error_message
+                    })
+            except Exception as e:
+                results["results"].append({
+                    "key": key,
+                    "key_length": len(key),
+                    "decrypted_text": "",
+                    "success": False,
+                    "error": str(e)
+                })
+
+        return results
 
     def _decrypt_autokey(self, ciphertext: str, key_obj: Key) -> CipherResult:
         """Decrypt ciphertext using autokey mode.
