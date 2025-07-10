@@ -1,5 +1,6 @@
-"""Utility functions for the Dachi cryptographic tool."""
+"""Utility modules for the dachi package."""
 
-from .text import normalize_text, validate_input
+from .alphabet_generator import AlphabetGenerator
+from .text import normalize_text, validate_input, format_output
 
-__all__ = ["normalize_text", "validate_input"]
+__all__ = ["AlphabetGenerator", "normalize_text", "validate_input", "format_output"]

@@ -13,6 +13,7 @@ from rich.text import Text
 from .core.alphabet import Alphabet
 from .ciphers.vigenere import VigenereCipher
 from .utils.text import format_output
+from .utils.alphabet_generator import AlphabetGenerator
 
 
 console = Console()
@@ -231,6 +232,158 @@ def decrypt(
             title="[green]Decrypted Text[/green]",
             border_style="green"
         ))
+
+
+
+
+
+@main.group()
+def alphabet() -> None:
+    """Alphabet generation and manipulation operations."""
+    pass
+
+
+@alphabet.command()
+@click.option('--input-file', '-i', required=True, help='Input file path containing words/phrases')
+@click.option('--output-file', '-o', help='Output file path for the generated alphabet')
+@click.option('--base-alphabet', '-b', default='ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+              help='Base alphabet to use for remaining characters (default: A-Z)')
+@click.option('--verbose', '-v', is_flag=True, help='Verbose output')
+def generate(input_file: str, output_file: Optional[str], base_alphabet: str, verbose: bool) -> None:
+    """Generate a keyed alphabet from a word list file."""
+
+    try:
+        # Generate the alphabet
+        alphabet_obj = AlphabetGenerator.create_alphabet_from_file(input_file, base_alphabet)
+
+        if verbose:
+            # Parse the words to show what was used
+            words = AlphabetGenerator.parse_word_list(input_file)
+            console.print(f"[blue]Parsed words: {', '.join(words)}[/blue]")
+
+        # Display the result
+        table = Table(title="Generated Keyed Alphabet")
+        table.add_column("Property", style="cyan")
+        table.add_column("Value", style="green")
+
+        table.add_row("Input File", input_file)
+        table.add_row("Generated Alphabet", alphabet_obj.characters)
+        table.add_row("Length", str(len(alphabet_obj)))
+        table.add_row("Base Alphabet", base_alphabet)
+
+        console.print(table)
+
+        # Save to file if requested
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(alphabet_obj.characters)
+            print_success(f"Alphabet saved to: {output_file}")
+
+    except FileNotFoundError as e:
+        print_error(str(e))
+    except ValueError as e:
+        print_error(str(e))
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+
+
+@alphabet.command()
+@click.option('--input-file', '-i', required=True, help='Input file path containing words/phrases')
+@click.option('--output-dir', '-o', help='Output directory for generated alphabets')
+@click.option('--base-alphabet', '-b', default='ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+              help='Base alphabet to use for remaining characters (default: A-Z)')
+@click.option('--verbose', '-v', is_flag=True, help='Verbose output')
+def generate_multiple(input_file: str, output_dir: Optional[str], base_alphabet: str, verbose: bool) -> None:
+    """Generate multiple alphabets from a word list file (one per word/phrase)."""
+
+    try:
+        # Generate multiple alphabets
+        alphabets = AlphabetGenerator.generate_multiple_alphabets(input_file, base_alphabet)
+        words = AlphabetGenerator.parse_word_list(input_file)
+
+        if verbose:
+            console.print(f"[blue]Generated {len(alphabets)} alphabets from {len(words)} words[/blue]")
+
+        # Display results
+        table = Table(title="Generated Alphabets")
+        table.add_column("Word/Phrase", style="cyan")
+        table.add_column("Generated Alphabet", style="green")
+        table.add_column("Length", style="yellow")
+
+        for word, alphabet_obj in zip(words, alphabets):
+            table.add_row(word, alphabet_obj.characters, str(len(alphabet_obj)))
+
+        console.print(table)
+
+        # Save to files if requested
+        if output_dir:
+            output_path = Path(output_dir)
+            output_path.mkdir(parents=True, exist_ok=True)
+
+            for i, (word, alphabet_obj) in enumerate(zip(words, alphabets)):
+                # Create a safe filename
+                safe_word = "".join(c for c in word if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                safe_word = safe_word.replace(' ', '_')
+                filename = f"alphabet_{i+1:02d}_{safe_word}.txt"
+                filepath = output_path / filename
+
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    f.write(f"Word: {word}\n")
+                    f.write(f"Alphabet: {alphabet_obj.characters}\n")
+                    f.write(f"Length: {len(alphabet_obj)}\n")
+
+            print_success(f"Generated {len(alphabets)} alphabet files in: {output_dir}")
+
+    except FileNotFoundError as e:
+        print_error(str(e))
+    except ValueError as e:
+        print_error(str(e))
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+
+
+@alphabet.command()
+@click.option('--words', '-w', required=True, help='Comma-separated list of words/phrases')
+@click.option('--base-alphabet', '-b', default='ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+              help='Base alphabet to use for remaining characters (default: A-Z)')
+@click.option('--output-file', '-o', help='Output file path for the generated alphabet')
+def generate_from_words(words: str, base_alphabet: str, output_file: Optional[str]) -> None:
+    """Generate a keyed alphabet from a comma-separated list of words."""
+
+    try:
+        # Parse words
+        word_list = [word.strip() for word in words.split(',') if word.strip()]
+
+        if not word_list:
+            print_error("No valid words provided")
+            return
+
+        # Generate the alphabet
+        keyed_alphabet = AlphabetGenerator.generate_keyed_alphabet(word_list, base_alphabet)
+        alphabet_obj = Alphabet(characters=keyed_alphabet)
+
+        # Display the result
+        table = Table(title="Generated Keyed Alphabet")
+        table.add_column("Property", style="cyan")
+        table.add_column("Value", style="green")
+
+        table.add_row("Input Words", words)
+        table.add_row("Generated Alphabet", alphabet_obj.characters)
+        table.add_row("Length", str(len(alphabet_obj)))
+        table.add_row("Base Alphabet", base_alphabet)
+
+        console.print(table)
+
+        # Save to file if requested
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(alphabet_obj.characters)
+            print_success(f"Alphabet saved to: {output_file}")
+
+    except ValueError as e:
+        print_error(str(e))
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
 
 
 @vigenere.command()
